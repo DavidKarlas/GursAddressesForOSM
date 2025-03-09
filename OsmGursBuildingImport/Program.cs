@@ -126,10 +126,10 @@ namespace OsmGursBuildingImport
                     await fs.CopyToAsync(bzip2Stream);
                 }
                 memoryStream.Position = 0;
-                return Results.Stream(memoryStream, fileDownloadName: filename);
+                return Results.Stream(memoryStream, contentType: "application/x-bzip2", fileDownloadName: filename);
             });
             app.MapGet("/full/{filename}", (string filename) => {
-                return Results.File(Path.Combine(fullFileCacheFolder, filename));
+                return Results.File(Path.Combine(fullFileCacheFolder, filename), contentType: "application/x-bzip2");
             });
             app.MapGet("/merge/{filename}", async (string filename) => {
                 var area = FileNameToArea(filename, gursData);
@@ -142,7 +142,7 @@ namespace OsmGursBuildingImport
                 using (var bzip2Stream = new BZip2OutputStream(memoryStream) { IsStreamOwner = false })
                     CreateMergeFile(area, LoadOsmData(pathToFile), bzip2Stream);
                 memoryStream.Position = 0;
-                return Results.Stream(memoryStream, fileDownloadName: filename);
+                return Results.Stream(memoryStream, fileDownloadName: filename, contentType: "application/x-bzip2");
             });
 
             app.Urls.Add("http://*:2009");
