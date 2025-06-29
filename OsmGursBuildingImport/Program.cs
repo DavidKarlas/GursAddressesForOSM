@@ -48,18 +48,18 @@ namespace OsmGursBuildingImport
 
         static async Task<int> Process(string[] args, CancellationToken cancellationToken)
         {
-            var repoRoot = Path.Combine(Directory.GetCurrentDirectory(), "..");
-            var overridesDir = Path.Combine(repoRoot, "overrides");
+            var currentFolder = Directory.GetCurrentDirectory();
+            var overridesDir = Path.Combine(currentFolder, "overrides");
             if (!Directory.Exists(overridesDir))
             {
                 Console.WriteLine("Overrides directory not found, are you running from inside root of repository?");
                 return 1;
             }
 
-            var dataFolder = Path.Combine(repoRoot, "data");
+            var dataFolder = Path.Combine(currentFolder, "data");
             var tempDir = Path.Combine(dataFolder, "temp/");
             if (Directory.Exists(tempDir))
-                Directory.Delete(tempDir, true);
+               Directory.Delete(tempDir, true);
             Directory.CreateDirectory(tempDir);
 
             var cacheDir = Path.Combine(dataFolder, "cache");

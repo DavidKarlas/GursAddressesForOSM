@@ -23,6 +23,11 @@ namespace OsmGursBuildingImport
 
         ConcurrentDictionary<string, SemaphoreSlim> semaphors = new();
 
+        class SlicePizzaApiResponse
+        {
+            public bool Complete { get; set; }
+        }
+
         public async Task<string> GetOriginalXmlFileAsync(ProcessingArea area)
         {
             var xmlOutputFile = Path.Combine(cacheFolder, area.Name + ".original.xml");
@@ -33,8 +38,28 @@ namespace OsmGursBuildingImport
                 if (!FileUpToDate(xmlOutputFile))
                 {
                     var unclipped = Path.Combine(cacheFolder, "unclipped-" + area.Name + ".original.pbf");
-                    await Process.Start("osmx", new[] { "extract", "/home/davidkarlas/slo.osmx", unclipped, "--region", area.pathToPoly }).WaitForExitAsync();
-                    await Process.Start("osmconvert", new[] { unclipped, "--complete-ways", "--complete-multipolygons", "-B=" + area.pathToPoly, "-o=" + xmlOutputFile }).WaitForExitAsync();
+                    var triggerExtractResponse = await httpClient.PostAsync($"https://slice.openstreetmap.us/api/",
+                        new StringContent($"{{\"Name\":\"none\",\"RegionType\":\"geojson\",\"RegionData\":{File.ReadAllText(area.pathToGeojson)}}}"));
+                    var requestId = await triggerExtractResponse.Content.ReadAsStringAsync();
+                    for (int i = 0; i < 20; i++)
+                    {
+                        await Task.Delay(1000);
+                        var response = await httpClient.GetFromJsonAsync<SlicePizzaApiResponse>($"https://slice.openstreetmap.us/api/{requestId}");
+                        if (response.Complete)
+                        {
+                            break;
+                        }
+                        if (i == 19)
+                        {
+                            throw new TimeoutException("SlicePizza API didn't complete after 20 seconds.");
+                        }
+                    }
+                    var stream = await httpClient.GetStreamAsync($"https://slice.openstreetmap.us/api/{requestId}.osm.pbf");
+                    using (var fileStream = new FileStream(unclipped, FileMode.Create, FileAccess.Write, FileShare.None))
+                    {
+                        await stream.CopyToAsync(fileStream);
+                    }
+                    await Process.Start("osmconvert", [unclipped, "--complete-ways", "--complete-multipolygons", "-B=" + area.pathToPoly, "-o=" + xmlOutputFile]).WaitForExitAsync();
                     File.Delete(unclipped);
                 }
                 return xmlOutputFile;

@@ -24,7 +24,7 @@ namespace OsmGursBuildingImport
     record VotingArea(Geometry Geometry, string Name, string Id);
     record BuildingInfo(long Id, Geometry Geometry, string? Date, List<Address>? Addresses, int? ConstructionYear);
     record Address(long Id, Geometry Geometry, string Date, string HouseNumber, BilingualName StreetName, PostInfo PostInfo, BilingualName VillageName);
-    record ProcessingArea(Geometry Geometry, string Name, List<BuildingInfo> Buildings, string pathToPoly)
+    record ProcessingArea(Geometry Geometry, string Name, List<BuildingInfo> Buildings, string pathToGeojson, string pathToPoly)
     {
         public bool Process { get; set; }
     }
@@ -48,6 +48,15 @@ namespace OsmGursBuildingImport
             LoadVotingAreasGeoJson();
 
             BuildProcessingAreas(tempDir);
+        }
+
+        private static string WriteGeoJson(string poliesDir, Geometry geometry, string id)
+        {
+            var geojsonPath = Path.Combine(poliesDir, id + ".geojson");
+            using var sw = new StreamWriter(geojsonPath);
+            var writer = new GeoJsonWriter();
+            sw.WriteLine(writer.Write(geometry));
+            return geojsonPath;
         }
 
         private static string WritePoly(string poliesDir, Geometry geometry, string id)
@@ -117,6 +126,7 @@ namespace OsmGursBuildingImport
                     votingArea.Geometry,
                     votingArea.Id,
                     new List<BuildingInfo>(),
+                    WriteGeoJson(poliesDir, votingArea.Geometry, votingArea.Id),
                     WritePoly(poliesDir, votingArea.Geometry, votingArea.Id));
                 ProcessingAreas.Add(votingArea.Id, newArea);
             }
